@@ -1,0 +1,13 @@
+{
+  "storage": {
+    "rules": "storage.rules",
+    "cors": [
+      {
+        "origin": ["http://localhost:3000", "https://ceterelecenet.web.app", "https://ceterelecenet.firebaseapp.com"],
+        "method": ["GET", "PUT", "POST", "DELETE", "OPTIONS"],
+        "maxAgeSeconds": 3600,
+        "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "X-Requested-With"]
+      }
+    ]
+  }
+}
