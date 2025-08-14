@@ -23,48 +23,64 @@ async function withRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
   throw lastError;
 }
 
-async function generateBlogStructured(category) {
-  console.log('Blog üretimi başlıyor...');
-  const system = `Sen Türkiye'nin en çok okunan teknoloji blogunun başyazarı ve editörüsün. Türkçe yaz, akıcı ve profesyonel bir üslup kullan.`;
-  const user = `"${category}" hakkında derinlikli, teknik ve özgün bir blog yazısı üret. Çıkışı şu JSON formatında ver:\n{\n  \"title\": string,\n  \"image_prompt\": string,\n  \"markdown\": string\n}\nKurallar:\n- En az 1200 kelime yaz.\n- Bölümler: ## Başlık, ### Giriş, ### Temel Kavramlar, ### Uygulama Senaryoları, ### Örnek Kod/Şema (metin), ### İleri Düzey Tartışma, ### Riskler ve Etik, ### Sonuç, ### Kaynakça.\n- Spesifik sayılar, gerçek teknolojiler, API isimleri, algoritmalar ve iyi uygulamalar ver.\n- Gereksiz tekrar yapma, net ve öğretici ol.\n- image_prompt tek cümle ve fotoğraf araması için betimleyici olsun.`;
+async function generateDraft(category) {
+  const system = `Kıdemli bir teknoloji editörüsün.`;
+  const user = `"${category}" konusunda detaylı bir taslak üret. Sıkı JSON formatı kullan:
+{"title": string, "image_prompt": string, "outline": [string], "key_points": [string]}
+Kurallar: 8-12 maddelik outline, her madde net; image_prompt tek cümle.`;
   const payload = {
     model: OPENAI_MODEL,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user }
-    ],
-    temperature: 0.75,
-    max_tokens: 3000
+    messages: [ { role: 'system', content: system }, { role: 'user', content: user } ],
+    temperature: 0.6,
+    max_tokens: 800
   };
-  console.log('OpenAI API çağrısı yapılıyor...');
-  
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('OpenAI API timeout (45s)')), 45000);
-  });
-  
-  const apiPromise = withRetry(() => axios.post(OPENAI_API_URL, payload, {
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
+  const res = await withRetry(() => axios.post(OPENAI_API_URL, payload, {
+    headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+    timeout: 30000
+  }));
+  const raw = res.data.choices?.[0]?.message?.content?.trim() || '';
+  return JSON.parse(raw);
+}
+
+async function humanizeFromDraft(category, draft) {
+  const system = `Çok okunan bir teknoloji blogunun insan yazarısın. Sıcak, hikaye anlatan bir üslup kullan; gerçek teknolojiler ve örneklerle konuş.`;
+  const user = `Aşağıdaki taslaktan uzun bir makale yaz. Türkçe yaz. JSON ver:
+{"title": string, "image_prompt": string, "markdown": string}
+Taslak:
+${JSON.stringify(draft, null, 2)}
+Kurallar:
+- En az 1500 kelime.
+- Bölümler: ## Başlık (kısa), ### Giriş (hikaye), ### Temel Kavramlar, ### Gerçek Dünya Örnekleri, ### Küçük Kod Parçaları (code fence), ### En İyi Uygulamalar, ### Riskler ve Etik, ### Sonuç, ### Kaynakça (3+ güvenilir kaynak).
+- Somut ürün/teknoloji adları (Azure OpenAI, TensorFlow, ONNX, Docker, Redis, gRPC vb.)
+- Klişe cümlelerden kaçın; veri, tarih ve sayılarla destekle.`;
+  const payload = {
+    model: OPENAI_MODEL,
+    messages: [ { role: 'system', content: system }, { role: 'user', content: user } ],
+    temperature: 0.8,
+    max_tokens: 3500
+  };
+  const res = await withRetry(() => axios.post(OPENAI_API_URL, payload, {
+    headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
     timeout: 45000
   }));
-  
-  const res = await Promise.race([apiPromise, timeoutPromise]);
-  console.log('OpenAI API yanıtı alındı');
   const raw = res.data.choices?.[0]?.message?.content?.trim() || '';
+  return JSON.parse(raw);
+}
+
+async function generateBlogStructured(category) {
+  console.log('Blog üretimi başlıyor (iki aşamalı)...');
+  const draft = await generateDraft(category);
   try {
-    const parsed = JSON.parse(raw);
-    console.log('JSON parse başarılı');
-    return parsed;
-  } catch (_) {
-    console.log('JSON parse başarısız, fallback kullanılıyor');
-    const titleMatch = raw.match(/^##\s*(.+)$/m);
-    return {
-      title: titleMatch ? titleMatch[1].trim() : `${category} Hakkında`,
-      image_prompt: category,
-      markdown: raw
+    const final = await humanizeFromDraft(category, draft);
+    return final;
+  } catch (e) {
+    // İnsanileştirme başarısızsa tek aşamalı üretime geri dön
+    const fallback = {
+      title: draft.title || `${category} Hakkında`,
+      image_prompt: draft.image_prompt || category,
+      markdown: `## ${draft.title || category}\n\n### Giriş\n${(draft.key_points||[]).slice(0,3).join(' ')}\n\n### Başlıklar\n${(draft.outline||[]).map(h=>`- ${h}`).join('\n')}`
     };
+    return fallback;
   }
 }
 

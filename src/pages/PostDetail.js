@@ -81,6 +81,19 @@ function convertMarkdownToHtml(content) {
   if (!content) return content;
   
   let html = content;
+
+  // ``` dil
+  // Çok satırlı code fence bloklarını <pre><code> ile sarmala ve HTML'yi kaçır
+  const escapeHtml = (str) =>
+    str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  html = html.replace(/```(\w+)?\s([\s\S]*?)```/g, (m, lang, code) => {
+    const language = (lang || '').toLowerCase();
+    return `<pre style="background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:8px; overflow:auto;">` +
+           `<code class="language-${language}">${escapeHtml(code.trim())}</code></pre>`;
+  });
   
   // Markdown görsellerini HTML <img> etiketine çevir
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />');
