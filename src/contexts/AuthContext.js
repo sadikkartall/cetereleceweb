@@ -9,6 +9,8 @@ import {
   deleteAccount as deleteUserAccount
 } from '../firebase/auth';
 import { getDocument, setDocument } from '../firebase/firestore';
+import { uploadProfileImageFromBase64, deleteProfileImage } from '../firebase/storage';
+import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
@@ -21,6 +23,7 @@ export function AuthProvider({ children }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileImage, setProfileImage] = useState('');
+  const navigate = useNavigate();
 
   // Kullanıcı kaydı
   async function register(email, password, userData = {}) {
@@ -84,30 +87,38 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Profil fotoğrafını güncelleme (Firestore'da saklama)
+  // Profil fotoğrafını güncelleme (Firebase Storage'da saklama)
   async function updateProfilePhoto(photoBase64) {
     try {
       if (!currentUser) throw new Error('Kullanıcı oturumu bulunamadı');
       
-      // Firestore'a profil fotoğrafını kaydet
-      await setDocument('users', currentUser.uid, {
-        profileImage: photoBase64,
-        displayName: userData?.displayName || currentUser.email,
-        email: currentUser.email
-      }, { merge: true });
+      // Firebase Storage'a profil fotoğrafını yükle
+      const photoURL = await uploadProfileImageFromBase64(photoBase64, currentUser.uid);
       
-      // Yerel profil fotoğrafı state'ini güncelle
-      setProfileImage(photoBase64);
+      if (!photoURL) {
+        throw new Error('Fotoğraf URL alınamadı');
+      }
       
-      // Firestore'daki fotoğrafa referans göstermek için bir işaret koy
-      const timestamp = Date.now();
+      // Önce yerel state'i güncelle (kullanıcı deneyimi için)
+      setProfileImage(photoURL);
+      
+      // Firestore'a profil fotoğrafı URL'sini kaydet
+      const userData = {
+        photoURL: photoURL,
+        updatedAt: new Date()
+      };
+      
+      await setDocument('users', currentUser.uid, userData, { merge: true });
+      
+      // Firebase Authentication profilini güncelle
       await updateUserProfile(currentUser, { 
-        photoURL: `photo-${timestamp}` 
+        photoURL: photoURL 
       });
       
       // Kullanıcı verilerini yenilemek için fetchUserData fonksiyonunu çağır
       await fetchUserData(currentUser.uid);
       
+      return photoURL;
     } catch (error) {
       console.error('Profil fotoğrafı güncelleme hatası:', error);
       throw error;
@@ -130,13 +141,28 @@ export function AuthProvider({ children }) {
     try {
       if (!currentUser) throw new Error('Kullanıcı oturumu bulunamadı');
       
-      // Firestore'dan profil fotoğrafını kaldır
-      await setDocument('users', currentUser.uid, {
-        profileImage: null
-      }, { merge: true });
+      try {
+        // Firebase Storage'dan profil fotoğrafını sil
+        await deleteProfileImage(currentUser.uid);
+      } catch (storageError) {
+        // Eğer dosya zaten silinmişse veya bulunamazsa, bu hatayı görmezden gel
+        if (storageError.code !== 'storage/object-not-found') {
+          throw storageError;
+        }
+        console.log('Profil fotoğrafı zaten silinmiş veya bulunamadı');
+      }
       
-      // Yerel profil fotoğrafı state'ini temizle
+      // Firestore'dan profil fotoğrafı URL'sini kaldır
+      const updatedUserData = {
+        photoURL: '',
+        updatedAt: new Date()
+      };
+      
+      await setDocument('users', currentUser.uid, updatedUserData, { merge: true });
+      
+      // Yerel state'leri güncelle
       setProfileImage('');
+      setUserData(prev => ({ ...prev, photoURL: '' }));
       
       // Firebase Authentication profilinden referansı kaldır
       await updateUserProfile(currentUser, { photoURL: '' });
@@ -152,12 +178,15 @@ export function AuthProvider({ children }) {
     try {
       const data = await getDocument('users', userId);
       if (data) {
-        setUserData(data);
-        
-        // Profil fotoğrafını al
-        if (data.profileImage) {
-          setProfileImage(data.profileImage);
+        // Firestore'daki photoURL varsa, hem userData'ya hem profileImage'e ata
+        setUserData(prev => ({ ...prev, ...data, photoURL: data.photoURL || prev?.photoURL || '' }));
+        if (data.photoURL) {
+          setProfileImage(data.photoURL);
+        } else if (currentUser?.photoURL) {
+          setProfileImage(currentUser.photoURL);
         }
+      } else if (currentUser?.photoURL) {
+        setProfileImage(currentUser.photoURL);
       }
       return data;
     } catch (error) {
@@ -203,7 +232,10 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     userData,
+    setUserData,
+    loading,
     profileImage,
+    setProfileImage,
     register,
     login,
     logout,

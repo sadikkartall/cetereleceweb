@@ -1,0 +1,231 @@
+.tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: #f5f5f5;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 6px;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 0;
+}
+.tiptap-toolbar button {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.tiptap-toolbar button.is-active {
+  background: #e0e0e0;
+  font-weight: bold;
+}
+.tiptap-toolbar button:hover {
+  background: #ececec;
+}
+.tiptap-editor,
+.ProseMirror {
+  color: #222;
+  background: #fff;
+  min-height: 200px;
+  padding: 16px;
+  border-radius: 8px;
+  transition: background 0.3s, color 0.3s;
+}
+.tiptap-editor:focus {
+  border-color: #7c3aed;
+}
+
+/* Dark mode için */
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor,
+.MuiThemeProvider-root[data-mui-theme='dark'] .ProseMirror {
+  color: #fff !important;
+  background: #23272f !important;
+}
+
+/* Paragraflar, başlıklar, listeler vs. için de renk override'ı */
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor p,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor h1,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor h2,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor h3,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor li,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor blockquote,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor pre,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor code {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+/* Kod blokları için ekstra kontrast */
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor pre,
+.MuiThemeProvider-root[data-mui-theme='dark'] .tiptap-editor code {
+  background: #181c23 !important;
+  color: #e6e6e6 !important;
+}
+
+.quill-editor-container {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.quill-editor-container .ql-container {
+  min-height: 200px;
+  font-size: 16px;
+  font-family: inherit;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.quill-editor-container .ql-toolbar {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+}
+
+.quill-editor-container .ql-toolbar button {
+  width: 28px;
+  height: 28px;
+  margin: 2px;
+  border-radius: 4px;
+}
+
+.quill-editor-container .ql-toolbar button:hover {
+  background-color: #e9ecef;
+}
+
+.quill-editor-container .ql-toolbar button.ql-active {
+  background-color: #007bff;
+  color: white;
+}
+
+.quill-editor-container .ql-editor {
+  padding: 12px 15px;
+}
+
+.quill-editor-container .ql-editor p {
+  margin-bottom: 1em;
+}
+
+.quill-editor-container .ql-editor img {
+  max-width: 100%;
+  height: auto;
+  margin: 10px 0;
+}
+
+.quill-editor-container .ql-editor video {
+  max-width: 100%;
+  height: auto;
+  margin: 10px 0;
+}
+
+/* Özel renk seçici stilleri */
+.quill-editor-container .ql-color-picker,
+.quill-editor-container .ql-background {
+  width: 28px;
+  height: 28px;
+}
+
+/* Liste stilleri */
+.quill-editor-container .ql-editor ul,
+.quill-editor-container .ql-editor ol {
+  padding-left: 1.5em;
+}
+
+/* Başlık stilleri */
+.quill-editor-container .ql-editor h1 {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+}
+
+.quill-editor-container .ql-editor h2 {
+  font-size: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.quill-editor-container .ql-editor h3 {
+  font-size: 1.17em;
+  margin-bottom: 0.5em;
+}
+
+/* Bağlantı stilleri */
+.quill-editor-container .ql-editor a {
+  color: #007bff;
+  text-decoration: underline;
+}
+
+.quill-editor-container .ql-editor a:hover {
+  color: #0056b3;
+}
+
+.quill-editor-container img,
+.ql-editor img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 12px auto !important;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  background: #fff;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.quill-editor-container .ql-editor {
+  min-height: 200px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.quill-editor-container .ql-editor {
+  padding-bottom: 40px;
+}
+
+.quill-editor-container .ql-editor img {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ql-editor img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.ql-align-right img {
+  float: right;
+  margin-left: 16px;
+  margin-bottom: 8px;
+}
+
+.ql-align-left img {
+  float: left;
+  margin-right: 16px;
+  margin-bottom: 8px;
+}
+
+.ql-align-center img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  float: none;
+  margin-bottom: 8px;
+}
+
+/* Görselin yanına yazı yazılabilmesi için paragraf ve img float uyumu */
+.ql-editor::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.resizable-image {
+  max-width: 100%;
+  height: auto;
+  cursor: pointer;
+}
+
+.resizable-image:hover {
+  outline: 2px solid #007bff;
+} 

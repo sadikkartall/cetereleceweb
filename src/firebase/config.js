@@ -2,9 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
-import { getAnalytics } from 'firebase/analytics';
 
-// Firebase yapılandırması - çevre değişkenlerinden alınır
+// Sadece REACT_APP_ ile başlayan env değişkenlerini kullan
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -22,7 +21,14 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
-const analytics = getAnalytics(app);
 
-export { db, auth, storage, analytics };
+// Storage için CORS ayarları
+const corsOptions = {
+  origin: ['http://localhost:3000', 'https://ceterelecenet.web.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+export { db, auth, storage, corsOptions };
 export default app; 

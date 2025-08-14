@@ -16,10 +16,10 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
-import { auth } from './config';
-import { setDocument, getDocument, getDocuments, deleteDocument } from './firestore';
+import { auth } from './config.js';
+import { setDocument, getDocument, getDocuments, deleteDocument } from './firestore.js';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './config';
+import { storage } from './config.js';
 import { where } from 'firebase/firestore';
 
 // Provider'ları oluştur

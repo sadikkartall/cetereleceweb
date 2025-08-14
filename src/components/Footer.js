@@ -56,7 +56,7 @@ const Footer = () => {
               <Link href="/contact" color="inherit" underline="hover">
                 İletişim
               </Link>
-              <Link href="/privacy" color="inherit" underline="hover">
+              <Link href="/privacy-policy" color="inherit" underline="hover">
                 Gizlilik Politikası
               </Link>
               <Link href="/terms" color="inherit" underline="hover">

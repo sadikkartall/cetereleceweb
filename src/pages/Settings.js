@@ -32,6 +32,20 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material';
 import ProfilePhotoUpload from '../settings/ProfilePhotoUpload';
+import Autocomplete from '@mui/material/Autocomplete';
+
+const HOBBY_OPTIONS = [
+  'Yapay Zeka',
+  'Python',
+  'Siber Güvenlik',
+  'Oyun Geliştirme',
+  'Web Geliştirme',
+  'Donanım',
+  'Mobil Uygulama',
+  'Veri Bilimi',
+  'Blockchain',
+  'Diğer'
+];
 
 const Settings = () => {
   const { currentUser, updatePassword, updateEmail, deleteAccount, userData, updateProfile } = useAuth();
@@ -61,6 +75,11 @@ const Settings = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Hobiler için state
+  const [hobbies, setHobbies] = useState(userData?.hobbies || []);
+  const [hobbySaveLoading, setHobbySaveLoading] = useState(false);
+  const [hobbyMessage, setHobbyMessage] = useState('');
 
   // Şifre değiştirme modalını aç
   const handleOpenPasswordDialog = () => {
@@ -213,8 +232,21 @@ const Settings = () => {
   };
 
   // Profil fotoğrafı güncellendiğinde çağrılacak fonksiyon
-  const handlePhotoUpdate = (photoURL) => {
+  const handlePhotoUpdate = () => {
     setMessage('Profil fotoğrafınız başarıyla güncellendi');
+  };
+
+  // Hobileri kaydet
+  const handleHobbiesSave = async () => {
+    setHobbySaveLoading(true);
+    setHobbyMessage('');
+    try {
+      await updateProfile({ hobbies });
+      setHobbyMessage('Hobileriniz başarıyla kaydedildi!');
+    } catch (err) {
+      setHobbyMessage('Hobiler kaydedilemedi: ' + (err.message || 'Bilinmeyen hata'));
+    }
+    setHobbySaveLoading(false);
   };
 
   return (
@@ -224,7 +256,7 @@ const Settings = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom>
               Hesap Ayarları
-            </Typography>
+          </Typography>
             <IconButton 
               color="primary" 
               onClick={() => navigate('/profile')}
@@ -316,6 +348,41 @@ const Settings = () => {
               </Card>
             </Grid>
 
+            {/* Hobiler / İlgi Alanları */}
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Hobiler / İlgi Alanları
+                  </Typography>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={HOBBY_OPTIONS}
+                    value={hobbies}
+                    onChange={(e, newValue) => setHobbies(newValue)}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Hobileriniz veya ilgi alanlarınız" placeholder="Hobi ekle..." />
+                    )}
+                    sx={{ mb: 2 }}
+                  />
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleHobbiesSave}
+                    disabled={hobbySaveLoading}
+                  >
+                    {hobbySaveLoading ? 'Kaydediliyor...' : 'Kaydet'}
+                  </Button>
+                  {hobbyMessage && (
+                    <Alert severity={hobbyMessage.includes('başarı') ? 'success' : 'error'} sx={{ mt: 2 }}>
+                      {hobbyMessage}
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
             {/* Kullanıcı Adı Değiştir */}
             <Grid item xs={12} md={6}>
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -378,7 +445,7 @@ const Settings = () => {
                   </Box>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Hesabınızı sildiğinizde, tüm verileriniz ve gönderileriniz kalıcı olarak silinecektir. Bu işlem geri alınamaz.
-                  </Typography>
+            </Typography>
                 </CardContent>
                 <CardActions>
                   <Button 
@@ -411,18 +478,18 @@ const Settings = () => {
               {usernameError}
             </Alert>
           )}
-          <TextField
+            <TextField
             autoFocus
             margin="dense"
             label="Yeni Kullanıcı Adı"
-            fullWidth
+              fullWidth
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value)}
-            required
+              required
             variant="outlined"
             sx={{ mb: 2, mt: 2 }}
-          />
-          <TextField
+            />
+            <TextField
             margin="dense"
             label="Şifreniz"
             type="password"
@@ -467,7 +534,7 @@ const Settings = () => {
             margin="dense"
             label="Mevcut Şifreniz"
             type="password"
-            fullWidth
+              fullWidth
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
@@ -476,8 +543,8 @@ const Settings = () => {
           />
           <TextField
             margin="dense"
-            label="Yeni Şifre"
-            type="password"
+              label="Yeni Şifre"
+              type="password"
             fullWidth
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -486,25 +553,25 @@ const Settings = () => {
             sx={{ mb: 2 }}
             error={newPassword.length > 0 && newPassword.length < 6}
             helperText={newPassword.length > 0 && newPassword.length < 6 ? "Şifre en az 6 karakter olmalıdır" : ""}
-          />
-          <TextField
+            />
+            <TextField
             margin="dense"
-            label="Yeni Şifre Tekrar"
-            type="password"
+              label="Yeni Şifre Tekrar"
+              type="password"
             fullWidth
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
             required
             variant="outlined"
             error={confirmPassword.length > 0 && newPassword !== confirmPassword}
             helperText={confirmPassword.length > 0 && newPassword !== confirmPassword ? "Şifreler eşleşmiyor" : ""}
-          />
+            />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClosePasswordDialog} disabled={changingPassword}>
             Vazgeç
           </Button>
-          <Button 
+            <Button
             onClick={handleChangePassword} 
             color="primary"
             variant="contained"
@@ -535,7 +602,7 @@ const Settings = () => {
             margin="dense"
             label="Şifreniz"
             type="password"
-            fullWidth
+              fullWidth
             value={deletePassword}
             onChange={(e) => setDeletePassword(e.target.value)}
             required
@@ -553,7 +620,7 @@ const Settings = () => {
             disabled={deletingAccount || !deletePassword}
           >
             {deletingAccount ? 'İşleniyor...' : 'Hesabımı Sil'}
-          </Button>
+            </Button>
         </DialogActions>
       </Dialog>
     </Container>

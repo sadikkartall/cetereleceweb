@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   onSnapshot
 } from 'firebase/firestore';
-import { db } from './config';
+import { db } from './config.js';
 
 /**
  * Belirli bir koleksiyondan veri getir
@@ -201,4 +201,52 @@ export const subscribeToCollection = (collectionName, queryConstraints = [], cal
   });
   
   return unsubscribe;
+};
+
+/**
+ * Bir koleksiyondaki belge sayısını getirir
+ * @param {string} collectionName - Koleksiyon adı
+ * @returns {Promise<number>} - Belge sayısı
+ */
+export const getCollectionCount = async (collectionName) => {
+  try {
+    const collectionRef = collection(db, collectionName);
+    const querySnapshot = await getDocs(collectionRef);
+    return querySnapshot.size;
+  } catch (error) {
+    console.error('Koleksiyon sayısı alınırken hata oluştu:', error);
+    throw error;
+  }
+};
+
+export const updateUserProfile = async (userId, profileData) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      ...profileData,
+      updatedAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    console.error('Profil güncelleme hatası:', error);
+    throw error;
+  }
+};
+
+export const getUserProfile = async (userId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      return {
+        id: userSnap.id,
+        ...userSnap.data()
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Kullanıcı profili getirme hatası:', error);
+    throw error;
+  }
 }; 

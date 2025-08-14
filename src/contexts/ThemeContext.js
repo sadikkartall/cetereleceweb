@@ -1,42 +1,51 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createAppTheme } from '../theme';
+import React, { createContext, useContext, useMemo } from 'react';
+import { createTheme } from '@mui/material/styles';
 
 // Tema bağlamını oluştur
 const ThemeContext = createContext();
 
 // Tema sağlayıcı bileşeni
 export function ThemeProvider({ children }) {
-  // Yerel depolamadan tema modunu al veya varsayılan olarak 'light' kullan
-  const [mode, setMode] = useState(() => {
-    const savedMode = localStorage.getItem('themeMode');
-    return savedMode || 'light';
-  });
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: 'light',
+          primary: {
+            main: '#23272f',
+          },
+          secondary: {
+            main: '#dc004e',
+          },
+          background: {
+            default: '#f5f5f5',
+            paper: '#fff',
+          },
+        },
+        typography: {
+          fontFamily: [
+            '-apple-system',
+            'BlinkMacSystemFont',
+            '"Segoe UI"',
+            'Roboto',
+            '"Helvetica Neue"',
+            'Arial',
+            'sans-serif',
+          ].join(','),
+        },
+      }),
+    []
+  );
 
-  // Tema modu değiştiğinde yerel depolamayı güncelle
-  useEffect(() => {
-    localStorage.setItem('themeMode', mode);
-  }, [mode]);
-
-  // Tema modunu değiştir
-  const toggleTheme = () => {
-    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+  const value = {
+    theme,
+    mode: 'light',
   };
 
-  // Tema nesnesini oluştur
-  const theme = createAppTheme(mode);
-
-  return (
-    <ThemeContext.Provider value={{ mode, toggleTheme, theme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 // Tema bağlamını kullanmak için özel kanca
 export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+  return useContext(ThemeContext);
 } 

@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import {
   AppBar,
   Toolbar,
@@ -11,53 +10,17 @@ import {
   Menu,
   MenuItem,
   Box,
-  useMediaQuery,
   Avatar,
-  Tooltip,
 } from '@mui/material';
 import {
-  Brightness4,
-  Brightness7,
-  Menu as MenuIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
-import { getDocument } from '../firebase/firestore';
 
 function Navbar() {
   const navigate = useNavigate();
-  const { currentUser, logout, profileImage } = useAuth();
-  const { mode, toggleTheme } = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [localProfileImage, setLocalProfileImage] = useState('');
-  const isMobile = useMediaQuery('(max-width:600px)');
-  const isDark = mode === 'dark';
-
-  // AuthContext'ten gelen profil fotoğrafını kullan
-  useEffect(() => {
-    if (profileImage) {
-      setLocalProfileImage(profileImage);
-    }
-  }, [profileImage]);
-
-  // Ayrıca Firestore'dan da kontrol et
-  useEffect(() => {
-    if (currentUser?.uid) {
-      const fetchProfileImage = async () => {
-        try {
-          const userDoc = await getDocument('users', currentUser.uid);
-          if (userDoc && userDoc.profileImage) {
-            setLocalProfileImage(userDoc.profileImage);
-          }
-        } catch (error) {
-          console.error('Profil fotoğrafı alınamadı:', error);
-        }
-      };
-      
-      fetchProfileImage();
-    } else {
-      setLocalProfileImage('');
-    }
-  }, [currentUser]);
+  const { currentUser, logout, userData, profileImage } = useAuth();
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const defaultAvatar = "https://ui-avatars.com/api/?name=Anonim";
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -70,6 +33,7 @@ function Navbar() {
   const handleLogout = async () => {
     try {
       await logout();
+      handleClose();
       navigate('/login');
     } catch (error) {
       console.error('Çıkış yapılırken hata oluştu:', error);
@@ -77,21 +41,20 @@ function Navbar() {
   };
 
   return (
-    <AppBar position="fixed" elevation={0}>
+    <AppBar position="fixed" elevation={0} sx={{ background: '#23272f', color: '#ffffff' }}>
       <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 4 } }}>
         <Typography
           variant="h6"
           component="div"
-          sx={{ 
+          sx={{
             cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: "1.4rem",
+            fontWeight: 700,
+            fontSize: "1.5rem",
             ml: 5,
-            background: isDark 
-              ? 'linear-gradient(45deg, #BB86FC 30%, #03DAC6 90%)'
-              : 'linear-gradient(45deg, #5a01d5 30%, #00bfad 90%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            background: 'none',
+            color: '#ffffff',
+            letterSpacing: 1.5,
+            textShadow: '0 2px 8px rgba(0,0,0,0.10)',
           }}
           onClick={() => navigate('/')}
         >
@@ -99,31 +62,29 @@ function Navbar() {
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {/* Tema değiştirme düğmesi */}
-          <Tooltip title={isDark ? "Aydınlık moda geç" : "Karanlık moda geç"}>
-            <IconButton
-              onClick={toggleTheme}
-              sx={{ mr: 2 }}
-              color="inherit"
-            >
-              {isDark ? <Brightness7 /> : <Brightness4 />}
-            </IconButton>
-          </Tooltip>
-
           {currentUser ? (
             <>
               <Button
-                variant="contained"
+                variant="outlined"
                 startIcon={<AddIcon />}
                 onClick={() => navigate('/create-post')}
                 sx={{ 
                   mr: 2,
                   borderRadius: '24px',
                   px: 2,
+                  color: '#ffffff',
+                  borderColor: '#ffffff',
+                  fontWeight: 600,
+                  background: 'transparent',
+                  '&:hover': {
+                    background: '#64b5f6',
+                    borderColor: '#ffffff',
+                  }
                 }}
               >
                 Gönderi Oluştur
               </Button>
+
               <IconButton
                 size="large"
                 aria-label="account of current user"
@@ -132,22 +93,19 @@ function Navbar() {
                 onClick={handleMenu}
                 sx={{
                   p: 0.5,
-                  backgroundColor: isDark 
-                    ? 'rgba(187, 134, 252, 0.1)'
-                    : 'rgba(90, 1, 213, 0.1)',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
                   '&:hover': {
-                    backgroundColor: isDark 
-                      ? 'rgba(187, 134, 252, 0.15)'
-                      : 'rgba(90, 1, 213, 0.15)',
+                    backgroundColor: 'rgba(255,255,255,0.18)',
                   }
                 }}
               >
                 <Avatar 
-                  alt={currentUser.email} 
-                  src={localProfileImage}
+                  alt={userData?.displayName || currentUser.email} 
+                  src={userData?.photoURL || profileImage || defaultAvatar}
                   sx={{ width: 32, height: 32 }} 
                 />
               </IconButton>
+
               <Menu
                 id="menu-appbar"
                 anchorEl={anchorEl}
@@ -183,18 +141,18 @@ function Navbar() {
           ) : (
             <Box sx={{ display: 'flex', gap: 1, mr: 5 }}>
               <Button 
-                color="primary"
+                color="inherit"
                 variant="outlined"
                 onClick={() => navigate('/login')}
-                sx={{ borderRadius: '20px' }}
+                sx={{ borderRadius: '20px', color: '#ffffff', borderColor: '#ffffff', fontWeight: 600, background: 'transparent', '&:hover': { background: '#64b5f6', borderColor: '#ffffff' } }}
               >
                 Giriş Yap
               </Button>
               <Button 
-                color="primary"
+                color="inherit"
                 variant="contained"
                 onClick={() => navigate('/register')}
-                sx={{ borderRadius: '20px' }}
+                sx={{ borderRadius: '20px', background: '#ffffff', color: '#23272f', fontWeight: 700, '&:hover': { background: '#343942', color: '#23272f' } }}
               >
                 Kayıt Ol
               </Button>

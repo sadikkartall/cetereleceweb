@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Web projesi için mevcut kurallar
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Profil fotoğrafları için kurallar
+    match /profile_images/{userId} {
+      allow read: if true;
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Mobil proje için ek kurallar
+    match /editor-images/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid != null;
+    }
+  }
+} 

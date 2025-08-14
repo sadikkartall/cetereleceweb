@@ -5,21 +5,58 @@ rules_version = '2';
 //    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
-    // Yetkilendirilmiş kullanıcılar için izinler
-    match /profile_images/{userId}/{imageId=**} {
-      // Kullanıcılar kendi profil fotoğraflarını okuyabilir, yazabilir ve silebilir
+    // Editör dosyaları için izinler
+    match /editor-images/{imageId} {
       allow read;
-      allow write, delete: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null 
+        && request.resource.size < 5 * 1024 * 1024 
+        && request.resource.contentType.matches('image/.*');
     }
     
-    // Test ve diğer dosyalar için izinler
+    match /editor-videos/{videoId} {
+      allow read;
+      allow write: if request.auth != null 
+        && request.resource.size < 50 * 1024 * 1024 
+        && request.resource.contentType.matches('video/.*');
+    }
+    
+    // Profil resimleri için izinler
+    match /profile_images/{userId}/{imageId=**} {
+      allow read;
+      // Yükleme işlemi için kurallar
+      allow create, update: if request.auth != null 
+        && request.auth.uid == userId 
+        && request.resource.size < 5 * 1024 * 1024 
+        && request.resource.contentType.matches('image/.*');
+      // Silme işlemi için ayrı kural
+      allow delete: if request.auth != null 
+        && request.auth.uid == userId;
+    }
+    
+    // Mobil uygulama için özel izinler
+    match /mobile/{userId}/{fileId=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+        && request.auth.uid == userId;
+    }
+    
+    // Web uygulaması için özel izinler
+    match /web/{userId}/{fileId=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+        && request.auth.uid == userId;
+    }
+    
+    // Test dosyaları için izinler
     match /test_files/{fileId} {
       allow read, write: if request.auth != null;
     }
     
-    // Diğer tüm dosyalar için erişimi kısıtla
+    // Varsayılan kurallar
     match /{allPaths=**} {
-      allow read, write: if false;
+      allow read: if request.auth != null;  // Sadece kimlik doğrulaması yapılmış kullanıcılar okuyabilir
+      allow write: if request.auth != null  // Sadece kimlik doğrulaması yapılmış kullanıcılar yazabilir
+        && request.resource.size < 10 * 1024 * 1024;  // Maksimum 10MB dosya boyutu
     }
   }
 }

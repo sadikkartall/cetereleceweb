@@ -3,10 +3,10 @@
     "rules": "storage.rules",
     "cors": [
       {
-        "origin": ["http://localhost:3000", "https://ceterelecenet.web.app", "https://ceterelecenet.firebaseapp.com"],
-        "method": ["GET", "PUT", "POST", "DELETE", "OPTIONS"],
+        "origin": ["*"],
+        "method": ["GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS"],
         "maxAgeSeconds": 3600,
-        "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "X-Requested-With"]
+        "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "X-Requested-With", "Accept", "Origin", "x-goog-resumable"]
       }
     ]
   }

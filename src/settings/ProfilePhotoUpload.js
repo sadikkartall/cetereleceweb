@@ -16,51 +16,22 @@ import {
   PhotoCamera as CameraIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { setDocument, getDocument } from '../firebase/firestore';
+import { setDocument } from '../firebase/firestore';
+import { updateUserProfile } from '../firebase/auth';
 
-const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
-  const { currentUser, userData, updateProfile, updateProfilePhoto, deleteProfilePhoto, profileImage } = useAuth();
+const ProfilePhotoUpload = ({ onPhotoUpdate, hideAvatar }) => {
+  const { currentUser, userData, updateProfilePhoto, deleteProfilePhoto, profileImage, setProfileImage, setUserData } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [loading, setLoading] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   const defaultAvatar = "https://via.placeholder.com/150";
-  // Firestore'dan fotoğrafı göster veya photoURL
-  const currentAvatar = avatarUrl || userData?.photoURL || defaultAvatar;
-
-  // Bileşen ilk yüklendiğinde Firestore'dan profil resmini getir
-  useEffect(() => {
-    if (currentUser?.uid) {
-      const loadProfileImage = async () => {
-        try {
-          const userDoc = await getDocument('users', currentUser.uid);
-          if (userDoc && userDoc.profileImage) {
-            setAvatarUrl(userDoc.profileImage);
-          }
-        } catch (error) {
-          console.error('Profil resmi yüklenirken hata:', error);
-        }
-      };
-      
-      loadProfileImage();
-    }
-  }, [currentUser]);
-
-  // Mevcut profil fotoğrafını göster
-  useEffect(() => {
-    if (profileImage) {
-      setPreviewUrl(profileImage);
-    } else {
-      setPreviewUrl('');
-    }
-  }, [profileImage]);
+  const currentAvatar = userData?.photoURL || profileImage || defaultAvatar;
 
   // Profil fotoğrafını image/jpeg olarak sıkıştırıp base64 formatına dönüştür
   const compressAndConvertToBase64 = (file) => {
@@ -73,14 +44,12 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
         img.src = event.target.result;
         
         img.onload = () => {
-          // Resmi daha küçük boyuta sıkıştır (100x100)
           const canvas = document.createElement('canvas');
-          const MAX_SIZE = 100; // 250'den 100'e düşürüldü
+          const MAX_SIZE = 300;
           
           let width = img.width;
           let height = img.height;
           
-          // Büyük kenarı en fazla MAX_SIZE olacak şekilde ölçekle
           if (width > height) {
             if (width > MAX_SIZE) {
               height *= MAX_SIZE / width;
@@ -99,9 +68,7 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
           
-          // JPEG formatında, 0.3 kalitesinde sıkıştır (0.5'ten düşürüldü)
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.3);
-          console.log('Resim sıkıştırıldı', compressedBase64.length);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
           resolve(compressedBase64);
         };
         
@@ -130,6 +97,12 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
     }
     
     return { valid: true };
+  };
+
+  const handleFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = (event) => {
@@ -176,83 +149,57 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
       setError('');
       setSuccess('');
 
-      // Doğrudan seçilen dosyayı kullan - önizleme yoksa
-      if (!document.getElementById('preview-container')) {
-        // Base64'e dönüştür
-        const base64Image = await compressAndConvertToBase64(selectedFile);
-        await updateProfilePhoto(base64Image);
-        
-        setUploading(false);
-        setSuccess('Profil fotoğrafı başarıyla yüklendi');
-        setSelectedFile(null);
-        
-        // Callback'i çağır
-        if (typeof onPhotoUpdate === 'function') {
-          onPhotoUpdate(base64Image);
-        }
-        
-        return;
-      }
-
-      // Canvas'tan ayarlanan görüntüyü al
-      const canvas = document.createElement('canvas');
-      const imageContainer = document.getElementById('preview-container');
-      const img = imageContainer.querySelector('img');
-
-      if (!img) {
-        setError('Resim bulunamadı. Lütfen tekrar bir dosya seçin.');
-        setUploading(false);
-        return;
-      }
-
-      // Canvas boyutunu ayarla
-      const size = 300; // Standart boyut
-      canvas.width = size;
-      canvas.height = size;
-
-      // Canvas'a resmi çiz ve yakınlaştırma uygula
-      const ctx = canvas.getContext('2d');
-      
-      // Resmin merkezi için hesaplamalar
-      const imgWidth = img.naturalWidth;
-      const imgHeight = img.naturalHeight;
-      
-      // Kare kırpma için kaynak koordinatları
-      const minDimension = Math.min(imgWidth, imgHeight);
-      const sourceX = (imgWidth - minDimension) / 2;
-      const sourceY = (imgHeight - minDimension) / 2;
-      
-      // Zoom faktörü uygulanmış boyutlar
-      const zoomedSize = minDimension / zoomLevel;
-      const zoomedX = sourceX + (minDimension - zoomedSize) / 2;
-      const zoomedY = sourceY + (minDimension - zoomedSize) / 2;
-      
-      // Kare kırpılmış ve zoom uygulanmış resmi çiz
-      ctx.drawImage(
-        img,
-        zoomedX, zoomedY, zoomedSize, zoomedSize, // Kaynak koordinatları
-        0, 0, size, size // Hedef koordinatları (kare)
-      );
-      
-      // Base64 formatına dönüştür
-      const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+      // Base64'e dönüştür
+      const base64Image = await compressAndConvertToBase64(selectedFile);
       
       // Profil fotoğrafını güncelle
-      await updateProfilePhoto(base64Image);
+      console.log('ProfilePhotoUpload: updateProfilePhoto çağrılıyor');
+      const photoURL = await updateProfilePhoto(base64Image);
+      console.log('ProfileImage güncellendi:', photoURL);
+      
+      if (!photoURL) {
+        throw new Error('Fotoğraf URL alınamadı');
+      }
+
+      // Firestore'da kullanıcı belgesini güncelle
+      const userData = {
+        photoURL: photoURL,
+        updatedAt: new Date()
+      };
+      
+      await setDocument('users', currentUser.uid, userData, { merge: true });
+
+      // Firebase Auth profilini güncelle
+      await updateUserProfile(currentUser, {
+        photoURL: photoURL
+      });
       
       setUploading(false);
       setSuccess('Profil fotoğrafı başarıyla yüklendi');
       setSelectedFile(null);
+      setPreviewUrl('');
       
       // Callback'i çağır
       if (typeof onPhotoUpdate === 'function') {
-        onPhotoUpdate(base64Image);
+        onPhotoUpdate();
       }
-      
     } catch (error) {
-      setUploading(false);
-      setError(`Yükleme hatası: ${error.message}`);
       console.error('Profil fotoğrafı yükleme hatası:', error);
+      console.error('Hata detayları:', { 
+        code: error.code, 
+        message: error.message,
+        name: error.name,
+        stack: error.stack 
+      });
+      
+      setUploading(false);
+      
+      // CORS hatası kontrolü
+      if (error.message && error.message.includes('CORS')) {
+        setError(`CORS Hatası: Tarayıcı güvenlik politikası engeli. Firebase Storage yapılandırmasını kontrol edin.`);
+      } else {
+        setError(`Yükleme hatası: ${error.message || 'Bilinmeyen hata'}`);
+      }
     }
   };
 
@@ -263,11 +210,33 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
       setError('');
       setSuccess('');
       
+      // Firebase Storage'dan fotoğrafı sil
       await deleteProfilePhoto();
+      
+      // Firestore'dan fotoğraf URL'sini kaldır
+      const userData = {
+        photoURL: '',
+        updatedAt: new Date()
+      };
+      
+      await setDocument('users', currentUser.uid, userData, { merge: true });
+
+      // Firebase Auth profilinden fotoğrafı kaldır
+      await updateUserProfile(currentUser, {
+        photoURL: ''
+      });
+      
+      // UI'ı güncelle
+      setPreviewUrl('');
+      setProfileImage('');
       
       setDeleteLoading(false);
       setSuccess('Profil fotoğrafı başarıyla silindi');
-      setPreviewUrl('');
+      
+      // Callback'i çağır
+      if (typeof onPhotoUpdate === 'function') {
+        onPhotoUpdate();
+      }
       
     } catch (error) {
       setDeleteLoading(false);
@@ -278,45 +247,75 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* Profil Fotoğrafı ve Düzenleme Butonu */}
-      <Box sx={{ position: 'relative', mb: 2 }}>
-        <Avatar
-          src={previewUrl || currentAvatar}
-          alt={userData?.displayName || currentUser?.email}
-          sx={{ 
-            width: 150, 
-            height: 150,
-            boxShadow: 2
-          }}
-        />
-        <IconButton
-          color="primary"
-          aria-label="upload picture"
+      {/* Yükleme Butonları */}
+      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+        <Button
+          variant="outlined"
+          startIcon={<UploadIcon />}
           component="label"
-          sx={{
-            position: 'absolute',
-            bottom: 0,
-            right: 0,
-            backgroundColor: 'background.paper',
-            '&:hover': { backgroundColor: 'background.default' },
-            boxShadow: 1
-          }}
           disabled={uploading}
-          onClick={() => fileInputRef.current.click()}
         >
-          <CameraIcon />
+          Fotoğraf Seç
           <input
-            hidden
-            ref={fileInputRef}
-            accept="image/jpeg, image/png"
             type="file"
+            hidden
+            accept="image/jpeg, image/png"
             onChange={handleFileChange}
           />
-        </IconButton>
+        </Button>
+        
+        {(userData?.photoURL || profileImage) && (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleDelete}
+            disabled={deleteLoading}
+          >
+            Kaldır
+          </Button>
+        )}
       </Box>
 
+      {/* Profil Fotoğrafı ve Düzenleme Butonu */}
+      {!hideAvatar && (
+        <Box sx={{ position: 'relative', mb: 2 }}>
+          <Avatar
+            src={previewUrl || currentAvatar}
+            alt={userData?.displayName || currentUser?.email}
+            sx={{ 
+              width: 150, 
+              height: 150,
+              boxShadow: 2
+            }}
+          />
+          <IconButton
+            color="primary"
+            aria-label="upload picture"
+            component="label"
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              backgroundColor: 'background.paper',
+              '&:hover': { backgroundColor: 'background.default' },
+              boxShadow: 1
+            }}
+            disabled={uploading}
+          >
+            <CameraIcon />
+            <input
+              type="file"
+              hidden
+              accept="image/jpeg, image/png"
+              onChange={handleFileChange}
+            />
+          </IconButton>
+        </Box>
+      )}
+
       {/* Önizleme ve Zoom Kontrolü */}
-      {selectedFile && previewUrl && (
+      {previewUrl && (
         <Paper 
           elevation={3} 
           sx={{ 
@@ -398,30 +397,6 @@ const ProfilePhotoUpload = ({ onPhotoUpdate }) => {
           {success}
         </Alert>
       )}
-
-      {/* Yükleme Butonları */}
-      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-        <Button
-          variant="outlined"
-          startIcon={<UploadIcon />}
-          onClick={() => fileInputRef.current.click()}
-          disabled={uploading}
-        >
-          Fotoğraf Seç
-        </Button>
-        
-        {(userData?.photoURL || avatarUrl) && (
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleDelete}
-            disabled={deleteLoading}
-          >
-            Kaldır
-          </Button>
-        )}
-      </Box>
 
       {/* Yükleniyor Göstergesi */}
       {uploading && (
