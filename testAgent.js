@@ -1,10 +1,8 @@
 require('dotenv').config();
-const { agentService } = require('./src/services/agentService.js');
-const { addDocument } = require('./src/firebase/firestore.js');
 const axios = require('axios');
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENAI_MODEL = 'gpt-3.5-turbo';
 
 async function withRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
   let attempt = 0;
@@ -26,8 +24,9 @@ async function withRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
 }
 
 async function generateBlogStructured(category) {
+  console.log('Blog üretimi başlıyor...');
   const system = `Sen Türkiye'nin en çok okunan teknoloji blogunun başyazarı ve editörüsün. Türkçe yaz, akıcı ve profesyonel bir üslup kullan.`;
-  const user = `"${category}" konusunda kapsamlı bir blog yazısı üret. Çıkışı şu JSON formatında ver:\n{\n  "title": string,\n  "image_prompt": string,\n  "markdown": string\n}\nKurallar:\n- En az 1000 kelime yaz.\n- Markdown başlıkları (##, ###) kullan.\n- Tekrarı azalt, özgün ol.\n- image_prompt bir cümle olsun.`;
+  const user = `"${category}" hakkında derinlikli, teknik ve özgün bir blog yazısı üret. Çıkışı şu JSON formatında ver:\n{\n  \"title\": string,\n  \"image_prompt\": string,\n  \"markdown\": string\n}\nKurallar:\n- En az 1200 kelime yaz.\n- Bölümler: ## Başlık, ### Giriş, ### Temel Kavramlar, ### Uygulama Senaryoları, ### Örnek Kod/Şema (metin), ### İleri Düzey Tartışma, ### Riskler ve Etik, ### Sonuç, ### Kaynakça.\n- Spesifik sayılar, gerçek teknolojiler, API isimleri, algoritmalar ve iyi uygulamalar ver.\n- Gereksiz tekrar yapma, net ve öğretici ol.\n- image_prompt tek cümle ve fotoğraf araması için betimleyici olsun.`;
   const payload = {
     model: OPENAI_MODEL,
     messages: [
@@ -35,20 +34,31 @@ async function generateBlogStructured(category) {
       { role: 'user', content: user }
     ],
     temperature: 0.75,
-    max_tokens: 2000
+    max_tokens: 3000
   };
-  const res = await withRetry(() => axios.post(OPENAI_API_URL, payload, {
+  console.log('OpenAI API çağrısı yapılıyor...');
+  
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('OpenAI API timeout (45s)')), 45000);
+  });
+  
+  const apiPromise = withRetry(() => axios.post(OPENAI_API_URL, payload, {
     headers: {
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    timeout: 30000
+    timeout: 45000
   }));
+  
+  const res = await Promise.race([apiPromise, timeoutPromise]);
+  console.log('OpenAI API yanıtı alındı');
   const raw = res.data.choices?.[0]?.message?.content?.trim() || '';
   try {
     const parsed = JSON.parse(raw);
+    console.log('JSON parse başarılı');
     return parsed;
   } catch (_) {
+    console.log('JSON parse başarısız, fallback kullanılıyor');
     const titleMatch = raw.match(/^##\s*(.+)$/m);
     return {
       title: titleMatch ? titleMatch[1].trim() : `${category} Hakkında`,
@@ -59,18 +69,25 @@ async function generateBlogStructured(category) {
 }
 
 async function getUnsplashImage(query) {
+  console.log('Görsel alma başlıyor...');
+  const fallback = 'https://source.unsplash.com/1200x630/?technology,ai';
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) {
+    console.log('Unsplash anahtarı yok, fallback kullanılıyor');
+    return fallback;
+  }
   return await withRetry(async () => {
     const res = await axios.get(
       `https://api.unsplash.com/photos/random`,
       {
-        params: { query, orientation: 'landscape' },
+        params: { query, orientation: 'landscape', client_id: accessKey },
         headers: { 'Accept-Version': 'v1' },
         timeout: 15000,
         validateStatus: s => (s >= 200 && s < 300) || s === 404
       }
     );
     if (res.status === 404 || !res.data?.urls?.regular) {
-      return 'https://source.unsplash.com/1200x630/?technology,ai';
+      return fallback;
     }
     return res.data.urls.regular;
   });
@@ -78,13 +95,23 @@ async function getUnsplashImage(query) {
 
 async function testCreateAgentAndBlog() {
   try {
+    console.log('Test başlıyor...');
+    console.log('ESM modülleri yükleniyor...');
+    const { agentService } = await import('./src/services/agentService.js');
+    const { addDocument } = await import('./src/firebase/firestore.js');
+    console.log('Modüller yüklendi');
+
     const agent = await agentService.createAgent();
     console.log('Oluşturulan ajan:', agent.displayName);
 
     const category = 'Yapay Zeka';
+    console.log('Blog kategorisi:', category);
     const structured = await generateBlogStructured(category);
+    console.log('Blog yapısı oluşturuldu:', structured.title);
 
+    console.log('Görsel alınıyor...');
     const imageUrl = await getUnsplashImage(structured.image_prompt || category);
+    console.log('Görsel URL alındı:', imageUrl);
 
     const blogContent = `![${structured.image_prompt}](${imageUrl})\n\n${structured.markdown}`;
 
@@ -97,10 +124,12 @@ async function testCreateAgentAndBlog() {
       likes: [],
       comments: []
     };
+    console.log('Blog objesi oluşturuldu, Firestore\'a yazılıyor...');
     await addDocument('posts', blog);
     console.log('Blog yazısı oluşturuldu ve paylaşıldı!');
   } catch (error) {
     console.error('Test sırasında hata:', error?.response?.data || error);
+    console.error('Hata stack:', error?.stack);
   }
 }
 

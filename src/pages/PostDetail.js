@@ -47,6 +47,10 @@ function getFirstImageSrc(html) {
   const mobileMatch = html.match(/\[IMAGE:([^\]]+)\]/);
   if (mobileMatch) return mobileMatch[1];
   
+  // Markdown görsel formatı ![alt](url)
+  const mdMatch = html.match(/!\[[^\]]*\]\(([^)]+)\)/);
+  if (mdMatch) return mdMatch[1];
+  
   return null;
 }
 
@@ -57,6 +61,9 @@ function removeFirstImgTag(html) {
   
   // Mobil format [IMAGE:...] kaldır
   html = html.replace(/\[IMAGE:[^\]]+\]/, '');
+  
+  // Markdown görseli kaldır ![alt](url)
+  html = html.replace(/!\[[^\]]*\]\([^)]+\)/, '');
   
   return html;
 }
@@ -75,6 +82,9 @@ function convertMarkdownToHtml(content) {
   
   let html = content;
   
+  // Markdown görsellerini HTML <img> etiketine çevir
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />');
+
   // Markdown başlıkları çevir
   html = html.replace(/^## (.+)$/gm, '<h2 style="font-size: 1.5rem; font-weight: 700; margin: 24px 0 16px 0; color: #1a1a1a;">$1</h2>');
   html = html.replace(/^### (.+)$/gm, '<h3 style="font-size: 1.25rem; font-weight: 600; margin: 20px 0 12px 0; color: #2a2a2a;">$1</h3>');
