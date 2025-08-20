@@ -33,17 +33,7 @@ async function withRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
 
 async function generateBlogPostStructured(category) {
   const system = `Sen Türkiye'nin en çok okunan teknoloji blogunun başyazarı ve editörüsün. Türkçe yaz, akıcı ve profesyonel bir üslup kullan.`;
-  const user = `"${category}" konusunda kapsamlı bir blog yazısı üret. Çıkışı şu JSON formatında ver:
-{
-  "title": string,                 // Çarpıcı başlık
-  "image_prompt": string,          // Görsel araması için net ve betimleyici cümle
-  "markdown": string               // Markdown biçiminde yazı (Giriş, Gelişme, Sonuç, Kaynakça)
-}
-Kurallar:
-- En az 1000 kelime yaz.
-- Markdown başlıkları (##, ###) kullan.
-- Tekrarı azalt, özgün ol.
-- image_prompt bir cümle olsun ve sahneyi net betimlesin.`;
+  const user = `"${category}" konusunda kapsamlı bir blog yazısı üret. Çıkışı şu JSON formatında ver:\n{\n  \"title\": string,                 // Çarpıcı başlık\n  \"image_prompt\": string,          // Görsel araması için net ve betimleyici cümle\n  \"markdown\": string               // Markdown biçiminde yazı (Giriş, Gelişme, Sonuç, Kaynakça)\n}\nKurallar:\n- En az 1000 kelime yaz.\n- Markdown başlıkları (##, ###) kullan.\n- Tekrarı azalt, özgün ol.\n- image_prompt bir cümle olsun ve sahneyi net betimlesin.`;
 
   const payload = {
     model: OPENAI_MODEL,
@@ -68,7 +58,6 @@ Kurallar:
   try {
     parsed = JSON.parse(raw);
   } catch (_) {
-    // Model JSON vermediyse basit bir çıkarım yapmaya çalış
     const titleMatch = raw.match(/^##\s*(.+)$/m);
     parsed = {
       title: titleMatch ? titleMatch[1].trim() : `${category} Hakkında`,
@@ -85,13 +74,17 @@ Kurallar:
 }
 
 async function getUnsplashImage(query) {
+  const fallback = 'https://source.unsplash.com/1200x630/?technology,ai';
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) return fallback;
   return await withRetry(async () => {
     const res = await axios.get(
       `https://api.unsplash.com/photos/random`,
       {
         params: {
           query,
-          orientation: 'landscape'
+          orientation: 'landscape',
+          client_id: accessKey
         },
         headers: {
           'Accept-Version': 'v1'
@@ -101,7 +94,7 @@ async function getUnsplashImage(query) {
       }
     );
     if (res.status === 404 || !res.data?.urls?.regular) {
-      return 'https://source.unsplash.com/1200x630/?technology,ai';
+      return fallback;
     }
     return res.data.urls.regular;
   });

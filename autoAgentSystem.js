@@ -36,7 +36,7 @@ async function withRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
 
 async function generateBlogPostStructured(category) {
   const system = `Sen Türkiye'nin en çok okunan teknoloji blogunun başyazarı ve editörüsün. Türkçe yaz, akıcı ve profesyonel bir üslup kullan.`;
-  const user = `"${category}" konusunda kapsamlı bir blog yazısı üret. Çıkışı şu JSON formatında ver:\n{\n  "title": string,\n  "image_prompt": string,\n  "markdown": string\n}\nKurallar:\n- En az 1000 kelime yaz.\n- Markdown başlıkları (##, ###) kullan.\n- Tekrarı azalt, özgün ol.\n- image_prompt bir cümle olsun ve sahneyi net betimlesin.`;
+  const user = `"${category}" konusunda kapsamlı bir blog yazısı üret. Çıkışı şu JSON formatında ver:\n{\n  \"title\": string,\n  \"image_prompt\": string,\n  \"markdown\": string\n}\nKurallar:\n- En az 1000 kelime yaz.\n- Markdown başlıkları (##, ###) kullan.\n- Tekrarı azalt, özgün ol.\n- image_prompt bir cümle olsun ve sahneyi net betimlesin.`;
 
   const payload = {
     model: OPENAI_MODEL,
@@ -74,18 +74,21 @@ async function generateBlogPostStructured(category) {
 }
 
 async function getUnsplashImage(query) {
+  const fallback = 'https://source.unsplash.com/1200x630/?technology,ai';
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) return fallback;
   return await withRetry(async () => {
     const res = await axios.get(
       `https://api.unsplash.com/photos/random`,
       {
-        params: { query, orientation: 'landscape' },
+        params: { query, orientation: 'landscape', client_id: accessKey },
         headers: { 'Accept-Version': 'v1' },
         timeout: 15000,
         validateStatus: s => (s >= 200 && s < 300) || s === 404
       }
     );
     if (res.status === 404 || !res.data?.urls?.regular) {
-      return 'https://source.unsplash.com/1200x630/?technology,ai';
+      return fallback;
     }
     return res.data.urls.regular;
   });
